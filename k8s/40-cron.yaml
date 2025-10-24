@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invguard-cron
+  namespace: invguard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invguard-cron
+  template:
+    metadata:
+      labels:
+        app: invguard-cron
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+      containers:
+        - name: cron
+          image: invguard-cron:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: invguard-config
+                  key: DATABASE_PATH
+            - name: BACKUP_PATH
+              value: "/app/backups"
+            - name: GPG_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: invguard-secrets
+                  key: GPG_PASSPHRASE
+            - name: API_URL
+              value: "http://invguard-backend:5000/api"
+            - name: BACKUP_RETENTION_DAYS
+              value: "30"
+            - name: HEALTH_CHECK_INTERVAL
+              value: "300"
+          command: ["python", "backup_cron.py"]
+          readinessProbe:
+            exec:
+              command: ["python", "backup_cron.py", "health"]
+            initialDelaySeconds: 10
+            periodSeconds: 60
+          livenessProbe:
+            exec:
+              command: ["python", "backup_cron.py", "health"]
+            initialDelaySeconds: 20
+            periodSeconds: 120
+          volumeMounts:
+            - name: db-data
+              mountPath: /app/data
+            - name: backup-data
+              mountPath: /app/backups
+            - name: cron-logs
+              mountPath: /app/logs
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: invguard-db-pvc
+        - name: backup-data
+          persistentVolumeClaim:
+            claimName: invguard-backup-pvc
+        - name: cron-logs
+          emptyDir: {}

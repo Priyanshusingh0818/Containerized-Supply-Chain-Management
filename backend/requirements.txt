@@ -1,0 +1,11 @@
+Flask
+Flask-RESTful
+Flask-SQLAlchemy
+Flask-JWT-Extended
+Flask-CORS
+Flask-SocketIO
+typer
+python-dotenv
+requests
+gunicorn
+eventlet

@@ -1,0 +1,63 @@
+
+services:
+  backend:
+    build: ./backend
+    container_name: invguard_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DATABASE_PATH=/app/data/inventory.db
+    volumes:
+      - db_data:/app/data
+    networks:
+      - invguard_network
+    command: python app.py
+
+  frontend:
+    build: ./frontend
+    container_name: invguard_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - invguard_network
+
+  cron:
+    build: ./cron
+    container_name: invguard_cron
+    environment:
+      - DATABASE_PATH=/app/data/inventory.db
+      - BACKUP_PATH=/app/backups
+      - GPG_PASSPHRASE=${GPG_PASSPHRASE}
+      - API_URL=http://backend:5000/api
+      - BACKUP_RETENTION_DAYS=30
+      - HEALTH_CHECK_INTERVAL=300
+    volumes:
+      - db_data:/app/data
+      - backup_data:/app/backups
+      - ./cron/logs:/app/logs
+    depends_on:
+      - backend
+    networks:
+      - invguard_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "backup_cron.py", "health"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  db_data:
+  backup_data:
+
+networks:
+  invguard_network:
+    driver: bridge

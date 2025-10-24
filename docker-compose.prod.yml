@@ -1,0 +1,78 @@
+services:
+  backend:
+    build: ./backend
+    container_name: invguard_backend
+    environment:
+      - FLASK_ENV=production
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DATABASE_PATH=/app/data/inventory.db
+    volumes:
+      - db_data:/app/data
+    command: gunicorn -w 4 -k gthread --threads 4 -b 0.0.0.0:5000 app:app
+    networks:
+      - invguard_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - REACT_APP_API_URL=${PUBLIC_API_URL:-https://${DOMAIN}/api}
+    container_name: invguard_frontend
+    networks:
+      - invguard_network
+
+  cron:
+    build: ./cron
+    container_name: invguard_cron
+    depends_on:
+      - backend
+    environment:
+      - DATABASE_PATH=/app/data/inventory.db
+      - BACKUP_PATH=/app/backups
+      - GPG_PASSPHRASE=${GPG_PASSPHRASE}
+      - API_URL=http://backend:5000/api
+      - BACKUP_RETENTION_DAYS=30
+      - HEALTH_CHECK_INTERVAL=300
+    volumes:
+      - db_data:/app/data
+      - backup_data:/app/backups
+      - ./cron/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "backup_cron.py", "health"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    networks:
+      - invguard_network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: invguard_caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - invguard_network
+
+networks:
+  invguard_network:
+    driver: bridge
+
+volumes:
+  db_data:
+  backup_data:
+  caddy_data:
+  caddy_config:

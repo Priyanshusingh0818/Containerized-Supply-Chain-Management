@@ -1,0 +1,20 @@
+# InvGuard Cron Configuration
+# This file contains the cron job definitions for the InvGuard backup service
+
+# Environment variables
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Daily backup at 2:00 AM
+0 2 * * * invguard cd /app && python backup_cron.py backup >> /app/logs/cron.log 2>&1
+
+# Hourly health check
+0 * * * * invguard cd /app && python backup_cron.py health >> /app/logs/cron.log 2>&1
+
+# Weekly maintenance on Sunday at 3:00 AM
+0 3 * * 0 invguard cd /app && python backup_cron.py cleanup >> /app/logs/cron.log 2>&1
+
+# Monthly full system check on the 1st at 4:00 AM
+0 4 1 * * invguard cd /app && python backup_cron.py backup && python backup_cron.py cleanup >> /app/logs/cron.log 2>&1
+
+# Empty line at the end (required by cron)

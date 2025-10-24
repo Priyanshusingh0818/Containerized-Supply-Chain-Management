@@ -1,0 +1,34 @@
+services:
+  backend:
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    volumes:
+      - db_data:/app/data:rw
+
+  frontend:
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+
+  cron:
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    volumes:
+      - db_data:/app/data:rw
+      - backup_data:/app/backups:rw
+      - ./cron/logs:/app/logs:rw

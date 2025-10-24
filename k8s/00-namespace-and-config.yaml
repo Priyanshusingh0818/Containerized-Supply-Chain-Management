@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: invguard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: invguard-config
+  namespace: invguard
+data:
+  DATABASE_PATH: "/app/data/inventory.db"
+---
+# Create this Secret separately in your cluster (do not commit real values)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: invguard-secrets
+  namespace: invguard
+type: Opaque
+stringData:
+  JWT_SECRET_KEY: "change-me"
+  GPG_PASSPHRASE: "change-me"

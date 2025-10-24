@@ -1,0 +1,26 @@
+# InvGuard Cron Service Dependencies
+# Core dependencies
+Flask
+Flask-SQLAlchemy
+python-dotenv
+requests
+
+# Scheduling and automation
+schedule
+
+# Database and backup utilities
+SQLAlchemy
+
+# Security and encryption
+cryptography
+
+# Logging and monitoring
+structlog
+
+# System utilities
+psutil
+
+# Development and testing (optional)
+pytest
+pytest-cov
+Flask-JWT-Extended

@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invguard-backend
+  namespace: invguard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invguard-backend
+  template:
+    metadata:
+      labels:
+        app: invguard-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: backend
+          image: invguard-backend:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: DATABASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: invguard-config
+                  key: DATABASE_PATH
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: invguard-secrets
+                  key: JWT_SECRET_KEY
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: db-data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: invguard-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invguard-backend
+  namespace: invguard
+spec:
+  selector:
+    app: invguard-backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
