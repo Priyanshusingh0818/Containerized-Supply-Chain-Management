@@ -58,5 +58,8 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5000/api/health || exit 1
 
+# Make start script executable and set proper line endings
+RUN chmod +x start.sh
+
 # Start the app using the backend start script (which switches to appuser)
-CMD ["/bin/sh", "./start.sh"]
+CMD ["./start.sh"]
