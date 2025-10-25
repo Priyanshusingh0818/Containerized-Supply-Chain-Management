@@ -3,8 +3,12 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 # Install deps
+# Copy package files and install dependencies. Use `npm install` here so the
+# build works even if a package-lock.json is not present in the repo. If you
+# add a package-lock.json in the future, you can switch back to `npm ci` for
+# deterministic installs.
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 # Build args for embedding API URL
 ARG REACT_APP_API_URL

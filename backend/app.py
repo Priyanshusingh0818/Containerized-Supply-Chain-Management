@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt
@@ -196,6 +196,14 @@ def api_root():
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint"""
+    # If a frontend URL is supplied via environment (e.g. FRONTEND_URL),
+    # redirect the root request to the frontend site. This is useful when
+    # backend and frontend are deployed as separate services (Render, Docker, etc.).
+    frontend_url = os.getenv('FRONTEND_URL')
+    if frontend_url:
+        # Ensure we redirect to the frontend (preserve trailing slash behaviour)
+        return redirect(frontend_url, code=302)
+
     return jsonify({
         'message': 'InvGuard API Server',
         'api': '/api/',
