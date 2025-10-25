@@ -11,6 +11,7 @@ from routes.transactions import transactions_bp
 from routes.analytics import analytics_bp
 from routes.audit import audit_bp
 from utils.db import init_db, set_db_permissions
+import pathlib
 
 # Load environment variables from .env file (development only)
 # In production (Render), use environment variables set in dashboard
@@ -41,13 +42,43 @@ print(f"CORS Origins: {CORS_ORIGINS}")
 
 if IS_PRODUCTION and '*' not in CORS_ORIGINS:
     # Strict CORS in production
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": CORS_ORIGINS,
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True,
-            "max_age": 3600
+    CORS(app, resources={"/api/*": {"origins": CORS_ORIGINS, "allow_headers": ["Content-Type", "Authorization"], "expose_headers": ["Content-Type", "Authorization"], "supports_credentials": True, "max_age": 3600}})
+else:
+    CORS(app)
+
+# Serve frontend static files
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    frontend_dir = os.path.join(app.root_path, 'frontend_build')
+    
+    if not os.path.exists(frontend_dir):
+        abort(500, description="Frontend build directory not found")
+        
+    if path and os.path.exists(os.path.join(frontend_dir, path)):
+        return send_from_directory(frontend_dir, path)
+    
+    # Serve index.html for any path not found (SPA routing)
+    return send_from_directory(frontend_dir, 'index.html')
+        }
+    })
+else:
+    CORS(app)
+
+# Serve frontend static files
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    frontend_dir = os.path.join(app.root_path, 'frontend_build')
+    
+    if not os.path.exists(frontend_dir):
+        abort(500, description="Frontend build directory not found")
+        
+    if path and os.path.exists(os.path.join(frontend_dir, path)):
+        return send_from_directory(frontend_dir, path)
+    
+    # Serve index.html for any path not found (SPA routing)
+    return send_from_directory(frontend_dir, 'index.html')
         }
     })
     socketio = SocketIO(app, cors_allowed_origins=CORS_ORIGINS)
