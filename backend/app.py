@@ -12,7 +12,8 @@ from routes.analytics import analytics_bp
 from routes.audit import audit_bp
 from utils.db import init_db, set_db_permissions
 
-# Load environment variables
+# Load environment variables from .env file (development only)
+# In production (Render), use environment variables set in dashboard
 load_dotenv()
 
 app = Flask(__name__)
@@ -20,7 +21,8 @@ app = Flask(__name__)
 # Configuration
 JWT_SECRET = os.getenv('JWT_SECRET_KEY')
 if not JWT_SECRET:
-    raise ValueError("JWT_SECRET_KEY environment variable is not set!")
+    env_hint = "Set environment variables in Render Dashboard" if os.getenv('RENDER') else "Check your .env file"
+    raise ValueError(f"JWT_SECRET_KEY environment variable is not set! {env_hint}")
 
 app.config['SECRET_KEY'] = JWT_SECRET
 app.config['JWT_SECRET_KEY'] = JWT_SECRET
@@ -96,6 +98,11 @@ app.register_blueprint(audit_bp, url_prefix='/api')
 with app.app_context():
     init_db(app)
     db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+    # Create directory if it doesn't exist
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
+    
     if os.path.exists(db_path):
         set_db_permissions(db_path)
     print(f"Database initialized at: {db_path}")
