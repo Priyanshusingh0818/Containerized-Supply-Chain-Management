@@ -40,8 +40,16 @@ COPY backend/ ./
 # Copy built frontend into backend image
 COPY --from=frontend-build /frontend/build ./frontend_build
 
+# Create non-root user and group used by start.sh (appuser)
+RUN groupadd -r users || true \
+    && useradd -r -u 10001 -g users appuser || true \
+    && mkdir -p /home/appuser \
+    && chown -R appuser:users /home/appuser
+
 # Create data directory
 RUN mkdir -p /app/data && chmod 755 /app/data
+RUN chown -R appuser:users /app || true
+RUN chown -R appuser:users /app/data || true
 
 # Expose port
 EXPOSE 5000
