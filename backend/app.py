@@ -3,42 +3,54 @@ from datetime import timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt
+from dotenv import load_dotenv
 from models import db, User
 from routes.items import items_bp
 from routes.transactions import transactions_bp
 from routes.analytics import analytics_bp
 from routes.audit import audit_bp
 from utils.db import init_db, set_db_permissions
-from config import get_config
 
-# Get validated configuration
-Config = get_config()
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
-# Load configuration from config class
-app.config.from_object(Config)
+# Configuration
+JWT_SECRET = os.getenv('JWT_SECRET_KEY')
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET_KEY environment variable is not set!")
+
+app.config['SECRET_KEY'] = JWT_SECRET
+app.config['JWT_SECRET_KEY'] = JWT_SECRET
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.getenv('DATABASE_PATH', '/data/inventory.db')}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
 
 # Environment detection
-FLASK_ENV = Config.FLASK_ENV
+FLASK_ENV = os.getenv('FLASK_ENV', 'development')
 IS_PRODUCTION = FLASK_ENV == 'production'
 
-# CORS Configuration - Secure for production
-if IS_PRODUCTION:
+# CORS Configuration
+CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*').split(',')
+print(f"CORS Origins: {CORS_ORIGINS}")
+
+if IS_PRODUCTION and '*' not in CORS_ORIGINS:
     # Strict CORS in production
     CORS(app, resources={
         r"/api/*": {
-            "origins": Config.CORS_ORIGINS,
+            "origins": CORS_ORIGINS,
             "allow_headers": ["Content-Type", "Authorization"],
             "expose_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True,
             "max_age": 3600
         }
     })
-    socketio = SocketIO(app, cors_allowed_origins=Config.CORS_ORIGINS)
+    socketio = SocketIO(app, cors_allowed_origins=CORS_ORIGINS)
 else:
-    # Relaxed CORS for development
+    # Relaxed CORS for development or if wildcard is set
     CORS(app, resources={
         r"/api/*": {
             "origins": "*",
@@ -50,8 +62,6 @@ else:
 
 db.init_app(app)
 jwt = JWTManager(app)
-
-# Make socketio available on the Flask app for utils to emit from
 app.socketio = socketio
 
 # JWT Error Handlers
@@ -88,6 +98,7 @@ with app.app_context():
     db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
     if os.path.exists(db_path):
         set_db_permissions(db_path)
+    print(f"Database initialized at: {db_path}")
 
 # Authentication Routes
 @app.route('/api/auth/login', methods=['POST'])
@@ -103,7 +114,6 @@ def login():
     if not user or not user.check_password(data['password']):
         return jsonify({'message': 'Invalid credentials'}), 401
     
-    # Create access token with role
     access_token = create_access_token(
         identity=user.username,
         additional_claims={'role': user.role}
@@ -115,12 +125,10 @@ def login():
     }), 200
 
 @app.route('/api/auth/register', methods=['POST'])
-@jwt_required()  # Require authentication to register new users
+@jwt_required()
 def register():
     """User registration endpoint - Admin only in production"""
-    # In production, only admins should create users
     if IS_PRODUCTION:
-        from flask_jwt_extended import get_jwt
         claims = get_jwt()
         if claims.get('role') != 'admin':
             return jsonify({'message': 'Admin access required'}), 403
@@ -149,10 +157,10 @@ def register():
 def health_check():
     """Health check endpoint"""
     try:
-        # Check database connection
         db.session.execute('SELECT 1')
         db_status = 'connected'
     except Exception as e:
+        print(f"Database health check failed: {e}")
         db_status = 'disconnected'
         
     return jsonify({
@@ -178,6 +186,15 @@ def api_root():
         }
     }), 200
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint"""
+    return jsonify({
+        'message': 'InvGuard API Server',
+        'api': '/api/',
+        'health': '/api/health'
+    }), 200
+
 # Error Handlers
 @app.errorhandler(404)
 def not_found(error):
@@ -193,6 +210,12 @@ def forbidden(error):
     return jsonify({'message': 'Access forbidden'}), 403
 
 if __name__ == '__main__':
-    # Use socketio.run so Flask-SocketIO properly initializes the async server
+    # Get port from environment (Render uses PORT env variable)
+    port = int(os.getenv('PORT', 5000))
     debug_mode = not IS_PRODUCTION
-    socketio.run(app, host='0.0.0.0', port=5000, debug=debug_mode)
+    
+    print(f"Starting server on port {port}")
+    print(f"Environment: {FLASK_ENV}")
+    print(f"Debug mode: {debug_mode}")
+    
+    socketio.run(app, host='0.0.0.0', port=port, debug=debug_mode)
