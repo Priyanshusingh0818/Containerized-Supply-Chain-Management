@@ -1,0 +1,69 @@
+services:
+  # Backend API Service
+  - type: web
+    name: invguard-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: starter
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_PATH
+        value: /data/inventory.db
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: GPG_PASSPHRASE
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+    disk:
+      name: invguard-database
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /api/health
+
+  # Frontend Service
+  - type: web
+    name: invguard-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile.prod
+    dockerContext: ./frontend
+    region: oregon
+    plan: starter
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://invguard-backend.onrender.com/api
+
+  # Cron Job Service
+  - type: worker
+    name: invguard-cron
+    runtime: docker
+    dockerfilePath: ./cron/Dockerfile
+    dockerContext: ./cron
+    region: oregon
+    plan: starter
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/inventory.db
+      - key: BACKUP_PATH
+        value: /backups
+      - key: GPG_PASSPHRASE
+        sync: false
+      - key: API_URL
+        value: https://invguard-backend.onrender.com/api
+      - key: BACKUP_RETENTION_DAYS
+        value: 30
+      - key: HEALTH_CHECK_INTERVAL
+        value: 300
+    disk:
+      name: invguard-backups
+      mountPath: /backups
+      sizeGB: 2
