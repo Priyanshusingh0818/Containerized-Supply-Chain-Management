@@ -1,19 +1,30 @@
 #!/bin/sh
+set -e
 
-# Wait for the data directory to be mounted
-while [ ! -d "/app/data" ]; do
-    echo "Waiting for data directory to be mounted..."
-    sleep 1
-done
+echo "=== InvGuard Backend Startup ==="
 
-# Set proper permissions
-chown -R appuser:users /app/data
-chmod 777 /app/data
+# Determine data directory (Render uses /data, local uses /app/data)
+DATA_DIR="${DATABASE_PATH%/*}"
+echo "Data directory: $DATA_DIR"
 
-# Create empty database file
-touch /app/data/inventory.db
-chown appuser:users /app/data/inventory.db
-chmod 600 /app/data/inventory.db
+# Ensure data directory exists and has correct permissions
+if [ -d "$DATA_DIR" ]; then
+    echo "Setting permissions on $DATA_DIR"
+    chown -R appuser:users "$DATA_DIR" 2>/dev/null || true
+    chmod -R 755 "$DATA_DIR" 2>/dev/null || true
+fi
 
-# Start the Flask application
-python app.py
+# If database file exists, set its permissions
+if [ -f "$DATABASE_PATH" ]; then
+    echo "Database file exists at $DATABASE_PATH"
+    chown appuser:users "$DATABASE_PATH" 2>/dev/null || true
+    chmod 644 "$DATABASE_PATH" 2>/dev/null || true
+fi
+
+echo "Environment: ${FLASK_ENV:-development}"
+echo "Database path: ${DATABASE_PATH:-/app/data/inventory.db}"
+echo "Port: ${PORT:-5000}"
+
+# Start the application as appuser
+echo "Starting Flask application..."
+exec gosu appuser python app.py
