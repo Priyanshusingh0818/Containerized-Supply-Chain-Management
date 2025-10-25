@@ -365,7 +365,7 @@ function Analytics() {
                         <span className="text-sm font-semibold text-gray-900">{item.quantity}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">${item.price.toFixed(2)}</span>
+                        <span className="text-sm text-gray-900">₹{item.price.toFixed(2)}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-bold text-green-600">${item.total_value.toFixed(2)}</span>

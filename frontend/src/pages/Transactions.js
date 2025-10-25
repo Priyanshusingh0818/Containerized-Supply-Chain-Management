@@ -508,7 +508,7 @@ function Transactions({ user }) {
                       <span className="font-semibold">Category:</span> {selectedItem.category}
                     </p>
                     <p className="text-sm text-blue-800">
-                      <span className="font-semibold">Price:</span> ${selectedItem.price}
+                      <span className="font-semibold">Price:</span> ₹{selectedItem.price}
                     </p>
                   </div>
                 )}
@@ -566,7 +566,7 @@ function Transactions({ user }) {
                 />
                 {formData.transaction_type === 'OUT' && selectedItem && formData.quantity > selectedItem.quantity && (
                   <p className="mt-2 text-sm text-red-600">
-                    ⚠️ Insufficient stock! Only {selectedItem.quantity} units available.
+                     Insufficient stock! Only {selectedItem.quantity} units available.
                   </p>
                 )}
               </div>

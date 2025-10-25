@@ -239,7 +239,7 @@ function ItemTable({ items, onEdit, onDelete, userRole }) {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-semibold text-gray-900">${item.price.toFixed(2)}</span>
+                    <span className="text-sm font-semibold text-gray-900">₹{item.price.toFixed(2)}</span>
                   </td>
                   {isAdmin && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
