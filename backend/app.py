@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from flask import Flask, jsonify, request, redirect
+from flask import Flask, jsonify, request, redirect, send_from_directory, abort
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt
@@ -193,15 +193,41 @@ def api_root():
         }
     }), 200
 
-@app.route('/', methods=['GET'])
-def root():
-    """Root endpoint"""
-    # If a frontend URL is supplied via environment (e.g. FRONTEND_URL),
-    # redirect the root request to the frontend site. This is useful when
-    # backend and frontend are deployed as separate services (Render, Docker, etc.).
+### Serve frontend static assets (if compiled into the image at ./frontend_build)
+FRONTEND_BUILD_DIR = os.path.join(os.getcwd(), 'frontend_build')
+
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_spa(path):
+    """Serve the compiled SPA from `frontend_build` when available.
+
+    - If the requested path corresponds to a real file in the build folder,
+      serve it (JS/CSS/images).
+    - Otherwise return index.html so the SPA router can handle client-side routes.
+    - API routes (`/api/*`) are registered above and will take precedence, but
+      this function also safely returns 404 for requests explicitly beginning
+      with `api/` when the API route isn't matched.
+    """
+    # Prevent accidental capture of API routes
+    if path.startswith('api'):
+        # Let Flask handle with the API blueprints (or return 404 if not found)
+        abort(404)
+
+    # If frontend build directory exists and file is present, serve the file
+    if os.path.isdir(FRONTEND_BUILD_DIR):
+        requested_path = os.path.join(FRONTEND_BUILD_DIR, path)
+        if path != '' and os.path.exists(requested_path):
+            return send_from_directory(FRONTEND_BUILD_DIR, path)
+
+        # Serve index.html for all other (client-side) routes
+        index_path = os.path.join(FRONTEND_BUILD_DIR, 'index.html')
+        if os.path.exists(index_path):
+            return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
+
+    # Fallback (no frontend build present) - show API info or redirect if configured
     frontend_url = os.getenv('FRONTEND_URL')
     if frontend_url:
-        # Ensure we redirect to the frontend (preserve trailing slash behaviour)
         return redirect(frontend_url, code=302)
 
     return jsonify({

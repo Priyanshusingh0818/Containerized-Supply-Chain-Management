@@ -1,7 +1,10 @@
 // InvGuard Frontend Configuration
 const config = {
   // API Configuration
-  API_URL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  // If REACT_APP_API_URL is not provided at build time, default to a
+  // same-origin API path so the frontend can be served from the same host
+  // as the backend (e.g. when the backend image contains the built SPA).
+  API_URL: process.env.REACT_APP_API_URL || '/api',
   
   // Application Configuration
   APP_NAME: 'InvGuard',

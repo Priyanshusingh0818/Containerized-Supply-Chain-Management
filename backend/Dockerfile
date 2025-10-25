@@ -1,3 +1,18 @@
+### Multi-stage Dockerfile: build the frontend, then build the backend image
+###  - Stage `frontend-build` compiles the React app into /frontend/build
+###  - Final Python image copies backend code and the frontend build into /app/frontend_build
+
+### Frontend build stage
+FROM node:18-alpine AS frontend-build
+WORKDIR /frontend
+
+# Install frontend dependencies and build
+COPY frontend/package*.json ./
+RUN npm install --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+### Backend runtime stage
 FROM python:3.11-slim
 
 # Best-practice Python runtime flags
@@ -19,11 +34,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd -r -u 10001 -g users appuser
 
 # Install Python deps first for better layer caching
-COPY requirements.txt .
+COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app source with proper ownership
-COPY --chown=appuser:users . .
+# Copy backend source with proper ownership
+COPY --chown=appuser:users backend/ ./
+
+# Copy built frontend from the frontend-build stage into the backend image
+# The build artifacts will be placed at /app/frontend_build
+COPY --from=frontend-build /frontend/build ./frontend_build
 
 # RENDER SPECIFIC: Create data directory at /data (where Render mounts disk)
 RUN mkdir -p /data \
@@ -41,9 +60,9 @@ RUN if [ -f start.sh ]; then chmod +x start.sh; fi
 # Expose port
 EXPOSE 5000
 
-# Health check for Render
+# Health check for Render - check backend health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5000/api/health || exit 1
 
-# RENDER SPECIFIC: Run as root to handle volume permissions, then switch to appuser in start.sh
+# Use start.sh which switches to non-root user and runs the app
 CMD ["/bin/sh", "./start.sh"]

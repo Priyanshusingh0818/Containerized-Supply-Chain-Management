@@ -4,7 +4,10 @@ services:
     name: invguard-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+  # Use repository root as build context so the backend image can build the frontend
+  # and include compiled assets. This allows deploying only the backend service
+  # while serving the frontend from the same image.
+  dockerContext: ./
     region: oregon
     plan: starter
     envVars:
