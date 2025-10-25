@@ -1,31 +1,37 @@
 services:
-  # Backend API Service (builds frontend in multi-stage)
+  # Combined Frontend + Backend Service
   - type: web
-    name: invguard-backend
+    name: invguard-app
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./dockerfile
     dockerContext: ./
     region: oregon
     plan: starter
     envVars:
+      - key: JWT_SECRET_KEY
+        value: e71314edcad5068330de2317e21598d88af7704f5433481d0500493f1d631013
+      - key: GPG_PASSPHRASE
+        value: qpxjp2ptN4-Rq-QIBF_0qD9hsU2HWVQHyG7b30a7y5Y
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: admin123
       - key: FLASK_ENV
         value: production
       - key: FLASK_DEBUG
         value: false
-      - key: JWT_SECRET_KEY
-        generateValue: true
       - key: DATABASE_PATH
         value: /data/inventory.db
-      - key: ADMIN_USERNAME
-        value: admin
-      - key: ADMIN_PASSWORD
-        generateValue: true
-      - key: GPG_PASSPHRASE
-        generateValue: true
+      - key: BACKUP_PATH
+        value: /backups
+      - key: BACKUP_RETENTION_DAYS
+        value: "30"
+      - key: HEALTH_CHECK_INTERVAL
+        value: "300"
       - key: CORS_ORIGINS
-        sync: false
-      - key: FRONTEND_URL
-        value: https://invguard-frontend.onrender.com
+        value: "*"
+      - key: PORT
+        value: "5000"
     disk:
       name: invguard-database
       mountPath: /data
